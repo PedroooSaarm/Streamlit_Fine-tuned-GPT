@@ -1,8 +1,6 @@
 import openai
 import streamlit as st
 
-if "openai_model" not in st.session_state:
-    st.session_state["openai_model"] = "gpt-3.5-turbo"
 
 with st.sidebar:
     st.title('🤖💬 SF OpenAI Chatbot')
@@ -11,7 +9,8 @@ with st.sidebar:
         st.warning('Please enter your credentials!', icon='⚠️')
     else:
         st.success('Proceed to entering your prompt message!', icon='👉')
-
+    if "openai_model" not in st.session_state:
+        st.session_state["openai_model"] = st.radio("Select Model", ("gpt-3.5-turbo", "gpt-3.5-turbo FINE_TUNED"))
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -26,17 +25,14 @@ if prompt := st.chat_input("What is up?"):
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         full_response = ""
-    for response in openai.chat.completions.create(
-        model=st.session_state["openai_model"],
-        messages=[
-            {"role": m["role"], "content": m["content"]}
-            for m in st.session_state.messages
-        ],
-        stream=True
-    ):
-        if response.choices[0].delta is not None and "content" in response.choices[0].delta:
-            full_response += str(response.choices[0].delta.content)
-
-        message_placeholder.markdown(full_response + "▌")
-        message_placeholder.markdown(full_response)
+        for response in openai.chat.completions.create(
+            model = st.session_state["openai_model"],
+            messages=[
+                {"role": m["role"], "content": m["content"]}
+                for m in st.session_state.messages
+            ],
+            stream=True
+            ): full_response += str(response.choices[0].delta.content)
+        message_placeholder.markdown(full_response[:-4] + "▌")
+        message_placeholder.markdown(full_response[:-4])
     st.session_state.messages.append({"role": "assistant", "content": full_response})
