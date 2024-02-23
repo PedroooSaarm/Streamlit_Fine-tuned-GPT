@@ -1,6 +1,16 @@
 import openai
 import streamlit as st
 
+# Function to generate response using the selected model
+def generate_response(prompt, model):
+    full_response = ""
+    for response in openai.ChatCompletion.create(
+        model=model,
+        messages=[{"role": m["role"], "content": m["content"]}
+                  for m in st.session_state.messages], stream=True):
+        full_response += response.choices[0].delta.get("content", "")
+    return full_response
+
 with st.sidebar:
     st.title('🤖💬 SF OpenAI Chatbot')
     openai.api_key = st.text_input('Enter OpenAI API token:', type='password')
@@ -8,6 +18,7 @@ with st.sidebar:
         st.warning('Please enter your credentials!', icon='⚠️')
     else:
         st.success('Proceed to entering your prompt message!', icon='👉')
+    model_selection = st.radio("Select Model", ("gpt-3.5-turbo", "gpt-3.5-turbo FINE_TUNED"))
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -22,12 +33,10 @@ if prompt := st.chat_input("What is up?"):
         st.markdown(prompt)
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        full_response = ""
-        for response in openai.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": m["role"], "content": m["content"]}
-                      for m in st.session_state.messages], stream=True):
-            full_response += response.choices[0].message.content
-            message_placeholder.markdown(full_response + "▌")
+        if model_selection == "gpt-3.5-turbo":
+            full_response = generate_response(prompt, "gpt-3.5-turbo")
+        else:
+            full_response = generate_response(prompt, "gpt-3.5-turbo FINE_TUNED")
+        message_placeholder.markdown(full_response + "▌")
         message_placeholder.markdown(full_response)
     st.session_state.messages.append({"role": "assistant", "content": full_response})
