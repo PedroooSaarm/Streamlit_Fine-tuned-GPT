@@ -9,8 +9,7 @@ with st.sidebar:
         st.warning('Please enter your credentials!', icon='⚠️')
     else:
         st.success('Proceed to entering your prompt message!', icon='👉')
-    if "openai_model" not in st.session_state:
-        st.session_state["openai_model"] = st.radio("Select Model", ("gpt-3.5-turbo", "gpt-3.5-turbo FINE_TUNED"))
+    st.session_state["openai_model"] = st.radio("Select Model", ("gpt-3.5-turbo", "gpt-3.5-turbo FINE_TUNED"))
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
