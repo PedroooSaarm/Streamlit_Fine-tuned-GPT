@@ -37,7 +37,7 @@ if prompt := st.chat_input("Escribe aquí..."):
                 for m in st.session_state.messages
             ],
             stream=True
-            ): full_response += str(response.choices[0].delta.content)[:-4]
+            ): full_response += str(response.choices[0].delta.content)
         message_placeholder.markdown(full_response[:-4] + "▌")
         message_placeholder.markdown(full_response[:-4])
     st.session_state.messages.append({"role": "assistant", "content": full_response})
