@@ -4,20 +4,26 @@ import streamlit as st
 
 with st.sidebar:
     st.title('🤖💬 SF OpenAI Chatbot')
-    openai.api_key = st.text_input('Enter OpenAI API token:', type='password')
+    openai.api_key = st.text_input('Intruduce tu API key de OpenAI', type='password')
     if not (openai.api_key.startswith('sk-') and len(openai.api_key)==51):
-        st.warning('Please enter your credentials!', icon='⚠️')
+        st.warning('Introduce tus credenciales', icon='⚠️')
     else:
-        st.success('Proceed to entering your prompt message!', icon='👉')
-    st.session_state["openai_model"] = st.radio("Select Model", ("gpt-3.5-turbo", "gpt-3.5-turbo FINE_TUNED"))
+        st.success('Puedes proceder a chatear', icon='👉')
+    st.session_state["openai_model"] = st.radio("Selecciona el modleo que deseas usar:", ("gpt-3.5-turbo", "gpt-3.5-turbo FINE_TUNED"))
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-        
-if prompt := st.chat_input("What is up?"):
+
+def clear_chat_history():
+    st.session_state.messages = st.session_state.messages = [
+        {"role": "system", "content": prompt},
+        ]
+st.sidebar.button('Limpiar chat', on_click=clear_chat_history)
+      
+if prompt := st.chat_input("Escribe aquí..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -31,7 +37,7 @@ if prompt := st.chat_input("What is up?"):
                 for m in st.session_state.messages
             ],
             stream=True
-            ): full_response += str(response.choices[0].delta.content)
+            ): full_response += str(response.choices[0].delta.content)[:-4]
         message_placeholder.markdown(full_response[:-4] + "▌")
         message_placeholder.markdown(full_response[:-4])
     st.session_state.messages.append({"role": "assistant", "content": full_response})
