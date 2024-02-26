@@ -4,6 +4,8 @@ import base64
 from audio_recorder_streamlit import audio_recorder
 import os
 
+# Initialize Streamlit app
+st.title('🤖💬 SF OpenAI Chatbot')
 
 # Sidebar content
 with st.sidebar:
@@ -36,19 +38,18 @@ def clear_chat_history():
 # Function to transcribe speech to text
 def speech_to_text(audio_data):
     with open(audio_data, "rb") as audio_file:
-        transcript = openai.audio.transcriptions.create(
-            model="whisper-1",
-            response_format="text",
-            file=audio_file
+        transcript = openai.Audio.create_transcription(
+            audio_file,
+            model="whisper-1"
         )
     return transcript
 
 # Function to convert text to speech
 def text_to_speech(input_text):
-    response = openai.audio.speech.create(
+    response = openai.Audio.create(
+        input=input_text,
         model="tts-1",
-        voice="nova",
-        input=input_text
+        voice="nova"
     )
     webm_file_path = "temp_audio_play.mp3"
     with open(webm_file_path, "wb") as f:
@@ -79,13 +80,9 @@ with footer_container:
 if audio_bytes:
     # Transcribe audio
     with st.spinner("Transcribing..."):
-        webm_file_path = "temp_audio.mp3"
-        with open(webm_file_path, "wb") as f:
-            f.write(audio_bytes)
-        
-        transcript = speech_to_text(webm_file_path)
+        transcript = speech_to_text(audio_bytes)
         st.session_state.messages.append({"role": "user", "content": transcript})
-        os.remove(webm_file_path)
+        st.write("Transcript:", transcript)
 
 # Chat input field
 if prompt := st.text_input("Escribe aquí o graba tu pregunta...", key="user_input"):
@@ -97,13 +94,12 @@ if prompt := st.text_input("Escribe aquí o graba tu pregunta...", key="user_inp
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             full_response = ""
-            for response in openai.chat.completions.create(
+            for response in openai.ChatCompletion.create(
                 model = st.session_state["openai_model"],
                 messages=[
                     {"role": m["role"], "content": m["content"]}
                     for m in st.session_state.messages
-                ],
-                stream=True
+                ]
             ): full_response += str(response.choices[0].delta.content)
             message_placeholder.markdown(full_response[:-4] + "▌")
             message_placeholder.markdown(full_response[:-4])
