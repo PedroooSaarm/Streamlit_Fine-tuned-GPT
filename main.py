@@ -1,27 +1,11 @@
-import streamlit as st
-import speech_recognition as sr
 import openai
+import streamlit as st
+import base64
+from audio_recorder_streamlit import audio_recorder
+import os
 
-# Function to get audio input
-def get_audio_input():
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.write("Listening...")
-        recognizer.adjust_for_ambient_noise(source)
-        audio = recognizer.listen(source)
-        
-    try:
-        st.write("Processing...")
-        query = recognizer.recognize_google(audio)
-        return query
-    except sr.UnknownValueError:
-        st.write("Could not understand audio")
-        return ""
-    except sr.RequestError as e:
-        st.write(f"Error: {e}")
-        return ""
 
-# Sidebar
+# Sidebar content
 with st.sidebar:
     st.title('🤖💬 SF OpenAI Chatbot')
     st.sidebar.info("Este chatbot utiliza el modelo de lenguaje GPT-3.5 de OpenAI para responder a tus preguntas. ¡Pruébalo!")
@@ -37,8 +21,7 @@ with st.sidebar:
                                 placeholder='Instrucciones que complementan el comportamiento de tu modelo de fine-tuning. Ej: Responde siempre alegre.')
     
     st.session_state["openai_model"] = st.radio("Selecciona el modelo que deseas usar:", ("gpt-3.5-turbo", "gpt-3.5-turbo FINE_TUNED"))
-
-# Initialize chat history
+    
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "system", "content": system_message},
@@ -49,18 +32,68 @@ def clear_chat_history():
     st.session_state.messages = [
         {"role": "system", "content": system_message},
     ]
-    
+
+# Function to transcribe speech to text
+def speech_to_text(audio_data):
+    with open(audio_data, "rb") as audio_file:
+        transcript = openai.audio.transcriptions.create(
+            model="whisper-1",
+            response_format="text",
+            file=audio_file
+        )
+    return transcript
+
+# Function to convert text to speech
+def text_to_speech(input_text):
+    response = openai.audio.speech.create(
+        model="tts-1",
+        voice="nova",
+        input=input_text
+    )
+    webm_file_path = "temp_audio_play.mp3"
+    with open(webm_file_path, "wb") as f:
+        response.stream_to_file(webm_file_path)
+    return webm_file_path
+
+# Function to autoplay audio
+def autoplay_audio(file_path: str):
+    with open(file_path, "rb") as f:
+        data = f.read()
+    b64 = base64.b64encode(data).decode("utf-8")
+    md = f"""
+    <audio autoplay>
+    <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+    </audio>
+    """
+    st.markdown(md, unsafe_allow_html=True)
+
 # Button to clear chat history
 st.sidebar.button('Limpiar chat', on_click=clear_chat_history)
 
-# Chat input and audio input
-col1, col2 = st.columns([4, 1])
-with col1:
-    if prompt := st.chat_input("Escribe aquí..."):
+# Container for the microphone
+footer_container = st.container()
+with footer_container:
+    audio_bytes = audio_recorder()
+
+# Handle audio input
+if audio_bytes:
+    # Transcribe audio
+    with st.spinner("Transcribing..."):
+        webm_file_path = "temp_audio.mp3"
+        with open(webm_file_path, "wb") as f:
+            f.write(audio_bytes)
+        
+        transcript = speech_to_text(webm_file_path)
+        st.session_state.messages.append({"role": "user", "content": transcript})
+        os.remove(webm_file_path)
+
+# Chat input field
+if prompt := st.text_input("Escribe aquí o graba tu pregunta...", key="user_input"):
+    if prompt.strip() != "":
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
-
+        
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             full_response = ""
@@ -71,16 +104,7 @@ with col1:
                     for m in st.session_state.messages
                 ],
                 stream=True
-                ): full_response += str(response.choices[0].delta.content)
+            ): full_response += str(response.choices[0].delta.content)
             message_placeholder.markdown(full_response[:-4] + "▌")
             message_placeholder.markdown(full_response[:-4])
         st.session_state.messages.append({"role": "assistant", "content": full_response[:-4]})
-
-with col2:
-    if st.button("🎤"):
-        audio_input = get_audio_input()
-        st.session_state.messages.append({"role": "user", "content": audio_input})
-        with st.chat_message("user"):
-            st.markdown(audio_input)
-        # Process the audio input similarly as text input
-        # Add your processing logic here
